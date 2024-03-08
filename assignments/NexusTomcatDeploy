@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+    stages{
+        stage('clone'){
+            steps{
+                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Guru-96/dockerjenkin.git']])
+            }
+        }
+        stage('validate'){
+            steps{
+                sh 'mvn validate'
+            }
+        }
+        stage('compile'){
+            steps{
+                sh 'mvn compile'
+            }
+        }
+        stage('test'){
+            steps{
+                sh 'mvn test'
+            }
+        }
+        stage('clean'){
+            steps{
+                sh 'mvn clean'
+            }
+        }
+         stage('Quality Analysis'){
+            steps{
+               sh "mvn clean verify sonar:sonar -Dsonar.projectKey=dockerjenkin -Dsonar.host.url=http://44.202.237.254:9000 -Dsonar.login=sqp_4bfea4e611711d08e1d56e29aafa1c1c616af43c"
+            }
+        }
+        stage('package'){
+            steps{
+                sh 'mvn package'
+            }
+        }
+        stage('nexus'){
+            steps{
+               nexusArtifactUploader artifacts: [[artifactId: 'java-tomcat-maven-example', classifier: '', file: '/var/lib/jenkins/workspace/Assignment/target/java-tomcat-maven-example.war', type: 'war']], credentialsId: 'nexus', groupId: 'com.example', nexusUrl: '54.211.74.72:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'maven-snapshots', version: '1.0-SNAPSHOT'
+            }
+        }
+        stage('deploy'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'deploye', path: '', url: 'http://44.202.115.234:8080')], contextPath: null, war: '**/*.war'
+            }
+        }
+    }
+}
