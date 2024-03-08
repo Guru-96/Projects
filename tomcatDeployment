@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+    parameters {
+        choice(choices: ['DEV', 'TEST', 'PRE-PROD', 'PROD'], description: 'Choose the environment  to deploy ', name: 'select_env')
+        choice choices: ['YES', 'NO'], description: 'move for test ', name: 'select'
+    }
+
+    stages {
+        stage('clone'){
+            steps{
+               checkout scmGit(branches: [[name: '*/dev']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Guru-96/taxi-booking.git']]) 
+            }
+        }
+        stage("package"){
+            steps{
+                sh 'mvn package'
+            }
+        }
+        stage('Conditional Stage') {
+            steps {
+                script {
+                    if (params.select_env == 'DEV') {
+			stage('DEV_DEPLOY'){
+                        	echo 'Deploying in DEV'
+                        deploy adapters: [tomcat9(credentialsId: 'dep', path: '', url: 'http://18.207.124.57:8080')], contextPath: null, war: '**/*.war'
+                        }
+                    } else if (params.select_env == 'TEST') {
+                             if (params.select == 'YES')
+			stage('TEST_DEPLOY'){
+                         	echo 'Deploying in TEST'
+                        deploy adapters: [tomcat9(credentialsId: 'Test', path: '', url: 'http://3.81.92.243:8080')], contextPath: null, war: '**/*.war'
+                      }
+                     }else if (params.select == 'NO'){
+                         echo 'Deploying stopped'
+                     }
+                     else if (params.select_env == 'PRE-PROD') {
+			stage('PRE_PROD_DEPLOY'){
+                         	echo 'Deploying in PRE-PROD'
+                         	deploy adapters: [tomcat9(credentialsId: 'Pre-Prod', path: '', url: 'http://54.196.208.247:8080')], contextPath: null, war: '**/*.war'
+                        }
+                        }else if (params.select_env == 'PROD') {
+			stage('PROD_DEPLOY'){
+                         	echo 'Deploying in PROD'
+                         	deploy adapters: [tomcat9(credentialsId: 'Prod', path: '', url: 'http://3.80.94.144:8080')], contextPath: null, war: '**/*.war'
+                        }
+                    } else {
+                        error 'Invalid stage selection!'
+                    }
+                }
+            }
+        }
+    }
+}
